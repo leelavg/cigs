@@ -41,6 +41,7 @@ import logging
 import os
 import re
 import shelve
+import unicodedata
 from collections import namedtuple
 from functools import wraps
 from logging.handlers import RotatingFileHandler
@@ -421,13 +422,17 @@ def to_done(context, issue_id):
                        'This issue is not assigned to you')
 
     summary = issue.fields.summary
-    info_dict['pol_id'] = summary[0:summary.find('\t')]
+    info_dict['pol_id'] = summary[0:summary.find(' ')]
 
     comment = issue.fields.comment.comments[-1].body
+
+    # Change unicode to normalized form
+    comment = unicodedata.normalize('NFKD', comment)
+
     # Expects comment body as below
     # rb: 12345
     # fn: test_function_1 test_function_2
-    info_dict['rb'] = re.search(r'rb: (\d+)', comment).group(0)
+    info_dict['rb'] = re.search(r'rb: (\d+)', comment).group(1)
 
     # One polarion test may correspond to many 'test_' functions in worst case
     temp_fns = re.findall(r'(test_\w+)', comment)
@@ -470,7 +475,7 @@ def to_done(context, issue_id):
                         # given in Jira comment and take note of the file path
                         if fn in temp_fns:
                             info_dict['fn_path'].append((fn, each_file))
-        if len(info_dict['fn_path']) != temp_fns:
+        if len(info_dict['fn_path']) != len(temp_fns):
             raise ApiError('Patch function doesn\'t exist', -32000,
                            f'{temp_fns} doesn\'t exist in {info_dict["rb"]}')
     else:
