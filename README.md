@@ -4,9 +4,9 @@ The program in this repo **isn't** intented to be used without any modifications
 
 ## Background
 The abstract was proposed to [qecamp](https://www.qecamp.com/proposals/27/2221)(Make sure to follow correct link after login) and this script is the implementation of that proposal.
-Below resources are available to only Red Hat associates (links are coming soon):
-- [Slide deck]
-- [Talk]
+Below resources are available to only Red Hat associates:
+- [Slides](https://docs.google.com/presentation/d/1jcH07ZPLvGAR5WZTbef9-GEQ1Y2ARJCE9ZOw-a7hbOA/)
+- [Talk](https://drive.google.com/file/d/13yWpfujO1XCtVfycSr70lwQzQ2gm7e7f/)
 
 ## Installation
 ### For Admin:
