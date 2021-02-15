@@ -12,10 +12,10 @@ Below resources are available to only Red Hat associates:
 ### For Admin:
 Production:
 ```
-$ pip3 install pipenv
+$ pip3 install pip-tools
 $ git clone https://github.com/leelavg/cigs.git
-$ cd cigs && pipenv shell
-(cigs) $ pipenv install --ignore-pipfile
+$ python3 -m venv cigs && source venv/bin/activate && cd cigs
+(cigs) $ pip-sync requirements.txt
 ```
 
 Fill all the required details as mentioned in `.env.example` file and create a new function as per your requirements by following the [references](https://github.com/leelavg/cigs#references) and observing `to_done` function in *rpc_service.py*.
@@ -24,10 +24,11 @@ Start the service as `(cigs) $ waitress --port=$SERVER_PORT rpc_service:app`
 
 Development/Testing:
 ```
-$ pip3 install pipenv
+$ pip3 install pip-tools
 $ git clone https://github.com/leelavg/cigs.git
-$ cd cigs && pipenv shell
-(cigs) $ pipenv install --dev
+$ python3 -m venv cigs && source venv/bin/activate && cd cigs
+(cigs) $ pip-sync requirements.txt dev-requirements.txt
+(cigs) $ dnf install python3-pyjwt # Command line `pyjwt` seems to be removed in recent version
 ```
 
 Perform any modifications if needed and start the server as:
@@ -51,7 +52,6 @@ ok 23 - Test: Make sure no fake user is added by end of test
 Linters and fixers used for python `isort -> yapf -> flake8 -> pylint` and for perl `$ perltidy -b -pt=2 -vmll test_rpc_service.pl`
 
 #### Note:
-- At the moment you many not be able to install all the dependecies needed as it contains an internal package which is soon to be open sourced at [pylero](https://github.com/RedHatQE/pylero).
 - Make sure to use different names for `SHELF_NAME` in production and testing.
 - Make sure to add name of shelve's being used to `.gitignore`
 
@@ -97,7 +97,7 @@ Perform actual operation for validating/updating fields (current function `to_do
 Apart from the documentation of python packages, please refer below to create your own methods for combining Jira, Gerrit and Polarion.
 - [Jira Rest API](https://docs.atlassian.com/software/jira/docs/api/REST/7.6.1/)
 - [Gerrit Rest API](https://gerrit-review.googlesource.com/Documentation/rest-api.html)
-- [Pylero](https://github.com/RedHatQE/pylero) Coming very soon ...
+- [Pylero](https://github.com/RedHatQE/pylero)
 
 ## Get in touch
 

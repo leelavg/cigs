@@ -29,6 +29,26 @@ use feature qw(say);
 use Test::More;
 use JSON::PP;
 
+# Helper for sourcing env file
+sub source {
+    my $name = shift;
+
+    open my $fh, '<', $name
+      or die "Could not open $name: $!";
+
+    while (<$fh>) {
+        chomp;
+        my ($line) = $_ =~ /(^[^#]*)/g;
+        my ($key, $value) = split /=/, $line, 2;
+        if (defined $key) {
+            $value =~ tr/'" //d;
+            if (not defined $ENV{$key}) { $ENV{$key} = $value; }
+        }
+    }
+}
+
+source '.env';
+
 # Required info for rest of the test
 my $http    = 'POST';
 my $type    = 'application/json';
@@ -91,16 +111,15 @@ Returns:
 
 my $get_jsession_id = sub {
     my $res =
-`curl --silent  -v -u $ENV{'JIRA_USERNAME'}:$ENV{'JIRA_PASSWORD'} $ENV{'JIRA_SERVER'}/rest/auth/latest/session -H "Content-Type: $type" 2>&1 | grep cookie`;
-    my $matches = () = $res =~ /cookie/gs;
-
-    # --- Test ---
-    cmp_ok($matches, '==', 2,
-        'Test: Two cookies should be set from jira when authenticated')
-      or BAIL_OUT "Can't proceed without authentication";
-
-    my ($jsession_id) = $res =~ /(?<=JSESSIONID=)(\w+)(?=;)/;
-    return "$jsession_id";
+`curl --silent  -v -u $ENV{'JIRA_USERNAME'}:$ENV{'JIRA_PASSWORD'} $ENV{'JIRA_SERVER'}/rest/auth/latest/session -H "Content-Type: $type" 2>&1`;
+    if ($res =~ /username=/gs) {
+        my ($jsession_id) = $res =~ /(?<=JSESSIONID=)(\w+)(?=;)/;
+        return "$jsession_id";
+    }
+    else {
+        # --- Test ---
+        BAIL_OUT "Can't authenticate to JIRA from command line";
+    }
 };
 
 # Test helper
@@ -138,7 +157,8 @@ $check_result->(
 );
 
 # --- Test ---
-my ($token) = $res->{'result'} =~ /Token: b'(.*)?'/s;
+my ($token) = $res->{'result'} =~ /Token:\s+b?'?(.*)/g;
+$token =~ tr/'//d;
 isnt($token, undef,
     'Test: get_token after successful authentication should return a token');
 
@@ -171,7 +191,8 @@ $check_result->(
 );
 
 # --- Test ---
-($token) = $res->{'result'} =~ /Token: b'(.*)?'/s;
+($token) = $res->{'result'} =~ /Token:\s+b?'?(.*)/g;
+$token =~ tr/'//d;
 $req = $get_req->($get_json->('get_all_users'), $priv_ep, $token);
 $res = $get_res->($req);
 $check_result->($res, 'Test: Admin should be able to get existing users');
@@ -286,6 +307,6 @@ $res = $get_res->($req);
 is_deeply($res->{'result'}, $users,
     'Test: Make sure no fake user is added by end of test');
 
-done_testing(23);
+done_testing(22);
 
 say '=' x 10 . ' END ' . '=' x 10;

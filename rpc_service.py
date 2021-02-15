@@ -185,12 +185,12 @@ jira = JIRA(basic_auth=(ENV.JIRA_USERNAME, ENV.JIRA_PASSWORD),
             })
 gerrit = GerritRestAPI(url=ENV.GERRIT_URL, auth=Anonymous())
 
-# Pylarion SOAP client is established during import and environment variables
-# has to be validated as pylarion picks credentials from there and let the
+# Pylero SOAP client is established during import and environment variables
+# has to be validated as pylero picks credentials from there and let the
 # 'Exception' stop the program execution if config is not correct
 # pylint: disable=wrong-import-position
 # TODO: Is it possible to cache suds client?
-from pylarion.work_item import TestCase  # noqa
+from pylero.work_item import TestCase  # noqa
 
 POL_MARKUP = '<span style="font-size: 10pt;line-height: 1.5;">{}</span>'
 
@@ -209,7 +209,7 @@ def token_required(func):
             return {'message': 'Token is missing!'}, 401
 
         try:
-            data = jwt.decode(token, ENV.JWT_SECRET)
+            data = jwt.decode(token, ENV.JWT_SECRET, algorithms=['HS256'])
             caller = data['sub']
         except jwt.exceptions.PyJWTError as excep:
             return {'message': str(excep)}, 401
@@ -329,7 +329,7 @@ def get_token(name, jsessionid, skip_auth=False):
         'exp': expiry,
         'sub': name,
     }
-    return 'Token: ' + str(jwt.encode(payload, ENV.JWT_SECRET))
+    return 'Token: ' + jwt.encode(payload, ENV.JWT_SECRET, algorithm='HS256')
 
 
 # Start of methods that are served at '/private' endpoint
@@ -422,7 +422,7 @@ def to_done(context, issue_id):
                        'This issue is not assigned to you')
 
     summary = issue.fields.summary
-    info_dict['pol_id'] = summary[0:summary.find(' ')]
+    info_dict['pol_id'] = summary.split(None, 1)[0]
 
     comment = issue.fields.comment.comments[-1].body
 
