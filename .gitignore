@@ -3,3 +3,4 @@
 *.log
 *.bak
 *.db
+__pycache__

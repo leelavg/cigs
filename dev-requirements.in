@@ -1,0 +1,6 @@
+-c requirements.txt
+isort
+yapf
+pylint
+flake8
+pdoc3

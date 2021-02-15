@@ -1,0 +1,9 @@
+jira
+pygerrit2
+pylero @ git+https://github.com/RedHatQE/pylero#egg=pylero
+jsonrpcserver
+flask
+pyjwt
+waitress
+python-dotenv
+requests
