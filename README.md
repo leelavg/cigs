@@ -49,11 +49,12 @@ ok 23 - Test: Make sure no fake user is added by end of test
 ========== END ==========
 ```
 
-Linters and fixers used for python `isort -> yapf -> flake8 -> pylint` and for perl `$ perltidy -b -pt=2 -vmll test_rpc_service.pl`
+Linters and fixers used for python `isort -> yapf -> autoflake -> flake8 -> pylint` and for perl `$ perltidy -b -pt=2 -vmll test_rpc_service.pl`
 
 #### Note:
 - Make sure to use different names for `SHELF_NAME` in production and testing.
 - Make sure to add name of shelve's being used to `.gitignore`
+- Gerrit is replaced with Github api, checkout tag v0.0.1 for gerrit connections etc.
 
 ### For User:
 

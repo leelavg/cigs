@@ -41,6 +41,7 @@ import logging
 import os
 import re
 import shelve
+import ssl
 import unicodedata
 from collections import namedtuple
 from functools import wraps
@@ -50,11 +51,15 @@ import jwt
 import requests
 from dotenv import load_dotenv
 from flask import Flask, Response, has_request_context, json, jsonify, request
+from ghapi.all import GhApi
 from jira import JIRA, JIRAError
 from jsonrpcserver import dispatch, method
 from jsonrpcserver.exceptions import ApiError
-from pygerrit2 import Anonymous, GerritRestAPI
 from werkzeug.exceptions import HTTPException
+
+# TODO: Fix SSL Issue while accessing Github
+# pylint: disable=protected-access
+ssl._create_default_https_context = ssl._create_unverified_context
 
 
 # Global setup
@@ -73,9 +78,9 @@ def _validated_env_vars():
     '''
 
     fields = 'JIRA_SERVER JIRA_USERNAME JIRA_PASSWORD JIRA_CERT_PATH \
-    GERRIT_URL POLARION_URL POLARION_REPO POLARION_USERNAME POLARION_PASSWORD \
-    POLARION_PROJECT POLARION_CERT_PATH JWT_SECRET JWT_EXPIRY SERVER_PORT \
-    ADMIN_USER SHELF_NAME'
+    GITHUB_OWNER GITHUB_REPO POLARION_URL POLARION_REPO POLARION_USERNAME \
+    POLARION_PASSWORD POLARION_PROJECT POLARION_CERT_PATH JWT_SECRET \
+    JWT_EXPIRY SERVER_PORT ADMIN_USER SHELF_NAME'
 
     try:
         mandatory = namedtuple('Environ_man', fields)._make(
@@ -99,6 +104,7 @@ if not load_dotenv(dotenv_path=os.getenv('DOTENV_PATH', '.env'),
 # Store environment variables and create Flask instance
 ENV = _validated_env_vars()
 app = Flask(__name__)
+owner, repo = ENV.GITHUB_OWNER, ENV.GITHUB_REPO
 
 
 # Logging
@@ -183,7 +189,9 @@ jira = JIRA(basic_auth=(ENV.JIRA_USERNAME, ENV.JIRA_PASSWORD),
                 'server': ENV.JIRA_SERVER,
                 'verify': ENV.JIRA_CERT_PATH
             })
-gerrit = GerritRestAPI(url=ENV.GERRIT_URL, auth=Anonymous())
+
+# Create a Github api connection
+ghapi = GhApi()
 
 # Pylero SOAP client is established during import and environment variables
 # has to be validated as pylero picks credentials from there and let the
@@ -391,7 +399,7 @@ def get_all_users(context):
 # pylint: disable=line-too-long
 @method
 def to_done(context, issue_id):
-    '''Validate and update fields across Jira, Gerrit and Polarion using \
+    '''Validate and update fields across Jira, Github and Polarion using \
     ADMIN_USER credentials.
 
     Args:
@@ -430,57 +438,52 @@ def to_done(context, issue_id):
     comment = unicodedata.normalize('NFKD', comment)
 
     # Expects comment body as below
-    # rb: 12345
+    # PR: 12345
     # fn: test_function_1 test_function_2
-    info_dict['rb'] = re.search(r'rb: (\d+)', comment).group(1)
+    info_dict['PR'] = re.search(r'pr: (\d+)', comment).group(1)
 
     # One polarion test may correspond to many 'test_' functions in worst case
     temp_fns = re.findall(r'(test_\w+)', comment)
-    if not (info_dict['rb'] and temp_fns):
+    if not (info_dict['PR'] and temp_fns):
         raise ApiError(
             'Malformed comment body', -32000, 'Comment expression '
-            'should be of form: rb: 12345\nfn: test_func_1 test_func_2')
+            'should be of form: PR: 12345\nfn: test_func_1 test_func_2')
 
-    # Gerrit
-    resp = gerrit.get(f'/changes/?q={info_dict["rb"]}')
-    if resp:
-        info_dict['rb_status'] = resp[0]['status']
-        change_id = resp[0]['change_id']
-        info_dict['fn_path'] = []
-    else:
-        raise ApiError(
-            'Gerrit error', -32000,
-            f'No patch exists in Gerrit with id: {info_dict["rb"]}')
+    # Github
+    # Test if PR is merged
+    try:
+        ghapi.pulls.check_if_merged(owner=owner,
+                                    repo=repo,
+                                    pull_number=info_dict['PR'])
+        info_dict['pr_status'] = 'MERGED'
+    # pylint: disable=broad-except
+    # Can't catch ghapi specific error here
+    except Exception as excep:
+        if '404' in str(excep):
+            raise ApiError('Github error', -32000,
+                           f'PR: {info_dict["PR"]} is not merged') from excep
+        else:
+            raise ApiError(
+                'Github error', -32000,
+                f'PR: {info_dict["PR"]} doesn\'t exist in {owner}/{repo}'
+            ) from excep
 
-    # Take note of test_script and function name if it is actually merged
-    if info_dict['rb_status'] == 'MERGED':
-        resp = gerrit.get(f'/changes/{change_id}/revisions/current/files')
+    # Take note of test_script and function name
+    info_dict['fn_path'] = []
+    files = ghapi.pulls.list_files(owner, repo, info_dict['PR'])
+    for each_file in files.items:
+        pr_content = str(each_file)
+        all_fns = re.findall(r'def (test_\w+)', pr_content)
+        fpath = re.findall(r'filename: (.*)', pr_content)[0]
 
-        for each_file in resp.keys():
-            # Don't store 'COMMIT_MSG'
-            if each_file.startswith('tests'):
-                # Read it's content for 'test_' functions
-                file_name = each_file.replace('/', '%2F')
-                # TODO: Is there a way to query only test functions without
-                # reading whole file?
-                resp = (
-                    gerrit.get(
-                        f'/changes/{change_id}/revisions/current/files/{file_name}/content'  # noqa
-                    ))
-                if resp:
-                    # Take note of all 'test_' functions in the file
-                    all_fns = re.findall(r'def (test_\w+)', resp)
-                    for fn in all_fns:
-                        # Check 'test_' function from file matches any function
-                        # given in Jira comment and take note of the file path
-                        if fn in temp_fns:
-                            info_dict['fn_path'].append((fn, each_file))
+        for fn in all_fns:
+            # Check 'test_' function from file matches any function
+            # given in Jira comment and take note of the file path
+            if fn in temp_fns:
+                info_dict['fn_path'].append((fn, fpath))
         if len(info_dict['fn_path']) != len(temp_fns):
             raise ApiError('Patch function doesn\'t exist', -32000,
-                           f'{temp_fns} doesn\'t exist in {info_dict["rb"]}')
-    else:
-        raise ApiError('Gerrit error', -32000,
-                       f'RB: {info_dict["rb"]} is not merged')
+                           f'{temp_fns} doesn\'t exist in {info_dict["PR"]}')
 
     # Polarion
     try:
@@ -522,10 +525,10 @@ def to_done(context, issue_id):
     # Add JIRA comment with gathered info if update is successful
     body = '\n'.join(
         str(key) + ': ' + str(value) for key, value in info_dict.items()
-        if key not in ('rb', 'pol_id'))
-    body += f'\nGerrit: {ENV.GERRIT_URL}/{info_dict["rb"]}'
+        if key not in ('PR', 'pol_id'))
+    body += f'\nGithub: {owner}/{repo}/pulls/{info_dict["PR"]}'
     body += f'\nPolarion: {ENV.POLARION_URL}/#/project/{ENV.POLARION_PROJECT}/workitem?id={info_dict["pol_id"]}'  # noqa
-    body += '\nGerrit status is verified and Polarion fields are updated'
+    body += '\nGithub status is verified and Polarion fields are updated'
 
     try:
         jira.add_comment(issue, body)
@@ -535,7 +538,7 @@ def to_done(context, issue_id):
             ('Polarion and Jira fields are updated but unable to add Jira '
              'comment' + str(err))) from err
 
-    return 'Gerrit fields are validated, Jira and Polarion fields are updated'
+    return 'Github fields are validated, Jira and Polarion fields are updated'
 
 
 @app.route('/private', methods=['POST'])

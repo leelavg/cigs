@@ -4,3 +4,4 @@ yapf
 pylint
 flake8
 pdoc3
+autoflake

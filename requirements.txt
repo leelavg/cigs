@@ -22,7 +22,11 @@ cryptography==3.4.5
     # via oauthlib
 defusedxml==0.6.0
     # via jira
+fastcore==1.3.19
+    # via ghapi
 flask==1.1.2
+    # via -r requirements.in
+ghapi==0.1.16
     # via -r requirements.in
 idna==2.10
     # via requests
@@ -42,20 +46,22 @@ oauthlib[signedtoken]==3.1.0
     # via
     #   jira
     #   requests-oauthlib
-pbr==5.5.1
+packaging==20.9
     # via
-    #   jira
-    #   pygerrit2
+    #   fastcore
+    #   ghapi
+pbr==5.5.1
+    # via jira
 pycparser==2.20
     # via cffi
-pygerrit2==2.0.14
-    # via -r requirements.in
 pyjwt==2.0.1
     # via
     #   -r requirements.in
     #   oauthlib
 git+https://github.com/RedHatQE/pylero#egg=pylero
     # via -r requirements.in
+pyparsing==2.4.7
+    # via packaging
 pyrsistent==0.17.3
     # via jsonschema
 python-dotenv==0.15.0
@@ -68,7 +74,6 @@ requests==2.25.1
     # via
     #   -r requirements.in
     #   jira
-    #   pygerrit2
     #   pylero
     #   requests-oauthlib
     #   requests-toolbelt
@@ -86,4 +91,5 @@ werkzeug==1.0.1
     # via flask
 
 # The following packages are considered to be unsafe in a requirements file:
+# pip
 # setuptools

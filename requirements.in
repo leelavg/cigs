@@ -1,5 +1,5 @@
 jira
-pygerrit2
+ghapi
 pylero @ git+https://github.com/RedHatQE/pylero#egg=pylero
 jsonrpcserver
 flask
