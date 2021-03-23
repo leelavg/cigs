@@ -62,7 +62,7 @@ Access to a terminal(and obviously be online) is the only requirement for consum
 
 ## Documentation
 
-Generated from [pdoc](https://pdoc3.github.io/pdoc/) and saved to [rpc_service.html](html/rpc_service.html), run `~/cigs $ python -m http.server -d html`and access your browser for documentation.
+Generated from [pdoc](https://pdoc3.github.io/pdoc/) and served using gh-pages [here](https://leelavg.github.io/cigs/)
 
 For live documentation, install dev dependencies too, run `(cigs) $ pdoc3 -http : rpc_service.py` and point your browser to `localhost:8080`.
 
