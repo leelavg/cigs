@@ -1,4 +1,7 @@
 # CI Glue Script
+
+# Functional but no longer updated
+
 ## Foreword
 The program in this repo **isn't** intented to be used without any modifications and so no packaging options are provided. It contains a flask based app with simple authorization and authentication scheme. The service is supposed to be run behind a firewall/VPN as this possibly access your production environment.
 
